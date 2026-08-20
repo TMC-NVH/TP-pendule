@@ -26,7 +26,7 @@ function renderState(calib, config, expId) {
     status.className = 'status warn';
     status.textContent = 'Calibration requise (une fois, ~3 min), puis memorisee sur ce telephone.';
     btn.textContent = 'Calibrer ma camera';
-    btn.onclick = () => requestCameraThen(startCalibration, config);
+    
   } else if (resMismatch) {
     status.className = 'status warn';
     status.textContent = 'Recalibration conseillee : la calibration ne correspond pas a cette camera.';
