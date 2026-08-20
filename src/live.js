@@ -76,6 +76,7 @@ function detectMarkers(video, canvas) {
   tctx.drawImage(video, 0, 0, tmp.width, tmp.height);
   const imageData = tctx.getImageData(0, 0, tmp.width, tmp.height);
   const markers = detector.detect(imageData);
+  if (markers.length) console.log("detecte:", markers.map(m => m.id));
   const found = {};
   for (const mk of markers) {
     let cx = 0, cy = 0;
