@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Générateur de QR code — Démo ArUco</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+<style>
+
+  :root {
+    --panel-bg: #14171a;
+    --panel-border: rgba(255,255,255,0.10);
+    --ink: #ECEEEA;
+    --ink-dim: #9BA3A0;
+    --teal: #45D6A6;
+    --font-display: "Space Grotesk", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "Courier New", monospace;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: #05070A;
+    color: var(--ink);
+    font-family: var(--font-display);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 380px;
+    margin: 24px;
+    padding: 28px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+  }
+
+  h1 {
+    font-size: 18px;
+    margin: 0 0 4px 0;
+  }
+
+  p.sub {
+    margin: 0 0 20px 0;
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-family: var(--font-mono);
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+  }
+
+  input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    background: #0B0D0F;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--teal);
+  }
+
+  #qrWrap {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+
+  button {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--teal);
+    color: var(--teal);
+    border-radius: 10px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  button:active {
+    transform: scale(0.98);
+  }
+
+</style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <h1>QR code de la démo</h1>
+    <p class="sub">Colle l'URL GitHub Pages une fois en ligne</p>
+
+    <label for="urlInput">URL de l'application</label>
+    <input
+      type="text"
+      id="urlInput"
+      value="https://ton-pseudo.github.io/aruco-spatial-audio-demo/"
+    >
+
+    <div id="qrWrap">
+      <canvas id="qrCanvas"></canvas>
+    </div>
+
+    <button id="downloadBtn">Télécharger en PNG</button>
+
+  </div>
+
+<script>
+
+  const input =
+    document.getElementById("urlInput");
+
+  const canvas =
+    document.getElementById("qrCanvas");
+
+  const downloadBtn =
+    document.getElementById("downloadBtn");
+
+
+  const qr =
+    new QRious({
+
+      element: canvas,
+
+      value: input.value,
+
+      size: 280,
+
+      background: "white",
+
+      foreground: "black",
+
+      level: "M"
+
+    });
+
+
+  input.addEventListener(
+
+    "input",
+
+    () => {
+
+      qr.value =
+        input.value;
+
+    }
+
+  );
+
+
+  downloadBtn.addEventListener(
+
+    "click",
+
+    () => {
+
+      const link =
+        document.createElement("a");
+
+      link.download =
+        "qr-demo-aruco.png";
+
+      link.href =
+        canvas.toDataURL("image/png");
+
+      link.click();
+
+    }
+
+  );
+
+</script>
+
+</body>
+</html>

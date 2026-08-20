@@ -1,36 +1,4 @@
-# tools/build_pdf.py  -  genere le PDF A4 a l'echelle exacte depuis les PNG de assets/
 from pathlib import Path
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas as pdfcanvas
-from reportlab.lib.utils import ImageReader
-
-OUT = Path("assets")
-pdf_path = OUT / "markers_a4_print.pdf"
-c = pdfcanvas.Canvas(str(pdf_path), pagesize=A4)
-W, H = A4
-
-motif_mm = 50.0
-total_mm = motif_mm * 760 / 600  # compense la quiet zone de 80 px
-
-for name, id_ in [("PIVOT", 0), ("MASSE", 1)]:
-    img = ImageReader(str(OUT / f"aruco_{name}_id{id_}.png"))
-    x = (W - total_mm * mm) / 2
-    y = (H - total_mm * mm) / 2
-    c.drawImage(img, x, y, total_mm * mm, total_mm * mm)
-    c.setFont("Helvetica", 12)
-    c.drawCentredString(W / 2, y - 20, "ArUco " + name + " id=" + str(id_) + " (motif 50 mm)")
-    c.drawCentredString(W / 2, 20, "Imprimer a 100% / Taille reelle")
-    c.showPage()
-
-ch = ImageReader(str(OUT / "charuco_5x7_calibration.png"))
-board_w, board_h = 150.0, 210.0
-x = (W - board_w * mm) / 2
-y = (H - board_h * mm) / 2
-c.drawImage(ch, x, y, board_w * mm, board_h * mm)
-c.setFont("Helvetica", 12)
-c.drawCentredString(W / 2, 15, "ChArUco 5x7 - carre 30 mm - Imprimer a 100%")
-c.showPage()
-
-c.save()
-print("ecrit:", pdf_path)
+c = "import { drawAngleArc } from './overlays/angleArc.js';\n\nlet running = false;\nlet rafId = null;\n\nexport function startLive(expId, stream) {\n  const { video, canvas, ctx } = ensureDom();\n  video.srcObject = stream;\n  video.play();\n  running = true;\n  video.onloadedmetadata = () => {\n    canvas.width = video.videoWidth;\n    canvas.height = video.videoHeight;\n    rafId = requestAnimationFrame(() => loop(video, canvas, ctx));\n  };\n}\n\nexport function stopLive() {\n  running = false;\n  if (rafId) cancelAnimationFrame(rafId);\n  const video = document.getElementById('live-video');\n  if (video && video.srcObject) {\n    video.srcObject.getTracks().forEach((t) => t.stop());\n    video.srcObject = null;\n  }\n}\n\nfunction ensureDom() {\n  let wrap = document.getElementById('live-wrap');\n  if (!wrap) {\n    wrap = document.createElement('div');\n    wrap.id = 'live-wrap';\n    wrap.style.cssText = 'position:relative;max-width:480px;margin:16px auto;';\n    const video = document.createElement('video');\n    video.id = 'live-video';\n    video.setAttribute('playsinline', '');\n    video.muted = true;\n    video.style.cssText = 'width:100%;display:block;border-radius:12px;';\n    const canvas = document.createElement('canvas');\n    canvas.id = 'live-canvas';\n    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;';\n    wrap.appendChild(video);\n    wrap.appendChild(canvas);\n    document.body.appendChild(wrap);\n  }\n  const video = document.getElementById('live-video');\n  const canvas = document.getElementById('live-canvas');\n  const ctx = canvas.getContext('2d');\n  return { video, canvas, ctx };\n}\n\nfunction loop(video, canvas, ctx) {\n  if (!running) return;\n  ctx.clearRect(0, 0, canvas.width, canvas.height);\n\n  // --- overlay de test : marqueurs simules pour valider l'affichage ---\n  // TODO: remplacer par la detection ArUco reelle (OpenCV.js)\n  const t = performance.now() / 1000;\n  const O = { x: canvas.width / 2, y: canvas.height * 0.15 };\n  const L = canvas.height * 0.5;\n  const theta = (15 * Math.PI / 180) * Math.cos(2 * t);\n  const M = { x: O.x + L * Math.sin(theta), y: O.y + L * Math.cos(theta) };\n\n  ctx.fillStyle = '#22c55e';\n  ctx.beginPath(); ctx.arc(O.x, O.y, 8, 0, 2 * Math.PI); ctx.fill();\n  ctx.beginPath(); ctx.arc(M.x, M.y, 8, 0, 2 * Math.PI); ctx.fill();\n  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;\n  ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(M.x, M.y); ctx.stroke();\n\n  drawAngleArc(ctx, O, M, theta, { animate: false });\n\n  rafId = requestAnimationFrame(() => loop(video, canvas, ctx));\n}\n"
+p = Path("src/live.js"); p.parent.mkdir(parents=True, exist_ok=True)
+p.write_text(c, encoding="utf-8"); print("ecrit:", p)
