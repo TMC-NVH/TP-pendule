@@ -1,13 +1,15 @@
 import { drawAngleArc } from './overlays/angleArc.js';
 import { kinematics } from './kinematics.js';
 
+const PIVOT_ID = 4;
+const MASS_ID = 18;
+
 let running = false;
 let rafId = null;
 let detector = null;
-let dict = null;
 
 const zero = { theta: null, samples: [], stableSince: null };
-let prevK = null;
+let prev = null;
 
 export function startLive(expId, stream) {
   const { video, canvas, ctx, hud } = ensureDom();
@@ -15,14 +17,15 @@ export function startLive(expId, stream) {
   video.play();
   running = true;
   resetZero();
+  if (typeof AR === 'undefined') {
+    hud.textContent = 'Erreur : js-aruco2 non charge (verifier index.html).';
+    return;
+  }
+  detector = new AR.Detector();
   video.onloadedmetadata = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    waitForCv(hud).then(() => {
-      dict = cv.getPredefinedDictionary(cv.DICT_4X4_50);
-      detector = new cv.aruco_ArucoDetector(dict, new cv.aruco_DetectorParameters());
-      rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
-    });
+    rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
   };
 }
 
@@ -37,8 +40,7 @@ export function stopLive() {
 }
 
 export function resetZero() {
-  zero.theta = null; zero.samples = []; zero.stableSince = null;
-  prevK = null;
+  zero.theta = null; zero.samples = []; zero.stableSince = null; prev = null;
 }
 
 function ensureDom() {
@@ -58,27 +60,13 @@ function ensureDom() {
     const hud = document.createElement('div');
     hud.id = 'live-hud';
     hud.style.cssText = 'position:absolute;top:8px;left:8px;right:8px;padding:8px 12px;background:rgba(15,23,42,.8);color:#e2e8f0;border-radius:8px;font:14px sans-serif;';
-    wrap.appendChild(video);
-    wrap.appendChild(canvas);
-    wrap.appendChild(hud);
+    wrap.appendChild(video); wrap.appendChild(canvas); wrap.appendChild(hud);
     document.body.appendChild(wrap);
   }
   const video = document.getElementById('live-video');
   const canvas = document.getElementById('live-canvas');
   const hud = document.getElementById('live-hud');
-  const ctx = canvas.getContext('2d');
-  return { video, canvas, ctx, hud };
-}
-
-function waitForCv(hud) {
-  return new Promise((resolve) => {
-    hud.textContent = 'Chargement de la vision (OpenCV)...';
-    const check = () => {
-      if (window.cv && cv.Mat && cv.getPredefinedDictionary) resolve();
-      else setTimeout(check, 200);
-    };
-    check();
-  });
+  return { video, canvas, ctx: canvas.getContext('2d'), hud };
 }
 
 function detectMarkers(video, canvas) {
@@ -86,73 +74,56 @@ function detectMarkers(video, canvas) {
   tmp.width = canvas.width; tmp.height = canvas.height;
   const tctx = tmp.getContext('2d');
   tctx.drawImage(video, 0, 0, tmp.width, tmp.height);
-  const src = cv.imread(tmp);
-  const gray = new cv.Mat();
-  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-  const corners = new cv.MatVector();
-  const ids = new cv.Mat();
-  const rejected = new cv.MatVector();
-  detector.detectMarkers(gray, corners, ids, rejected);
+  const imageData = tctx.getImageData(0, 0, tmp.width, tmp.height);
+  const markers = detector.detect(imageData);
   const found = {};
-  for (let i = 0; i < ids.rows; i++) {
-    const id = ids.intAt(i, 0);
-    const c = corners.get(i);
+  for (const mk of markers) {
     let cx = 0, cy = 0;
-    for (let j = 0; j < 4; j++) { cx += c.floatAt(0, j * 2); cy += c.floatAt(0, j * 2 + 1); }
-    found[id] = { x: cx / 4, y: cy / 4 };
-    c.delete();
+    for (const p of mk.corners) { cx += p.x; cy += p.y; }
+    found[mk.id] = { x: cx / 4, y: cy / 4 };
   }
-  src.delete(); gray.delete(); corners.delete(); ids.delete(); rejected.delete();
   return found;
 }
 
 function updateZero(rawTheta, dtheta) {
   if (zero.theta !== null) return;
-  const stable = Math.abs(dtheta) < 0.05;
-  if (stable) {
+  if (Math.abs(dtheta) < 0.05) {
     if (zero.stableSince === null) zero.stableSince = performance.now();
     zero.samples.push(rawTheta);
     if (performance.now() - zero.stableSince > 2000) {
       zero.theta = zero.samples.reduce((a, b) => a + b, 0) / zero.samples.length;
     }
-  } else {
-    zero.stableSince = null; zero.samples = [];
-  }
+  } else { zero.stableSince = null; zero.samples = []; }
 }
 
 function loop(video, canvas, ctx, hud) {
   if (!running) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const found = detectMarkers(video, canvas);
-  const O = found[0];
-  const M = found[1];
+  const O = found[PIVOT_ID];
+  const M = found[MASS_ID];
   if (!O || !M) {
-    hud.textContent = 'Cherche les marqueurs (pivot id=0, masse id=1)...';
+    hud.textContent = 'Cherche les marqueurs (pivot id=4, masse id=18)...';
     rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
     return;
   }
   const rawTheta = Math.atan2(M.x - O.x, M.y - O.y);
   const dt = 1 / 60;
-  const dtheta = prevK ? (rawTheta - prevK.raw) / dt : 0;
+  const dtheta = prev ? (rawTheta - prev.raw) / dt : 0;
+  drawMarker(ctx, O, '#22c55e'); drawMarker(ctx, M, '#22c55e');
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(M.x, M.y); ctx.stroke();
   if (zero.theta === null) {
     updateZero(rawTheta, dtheta);
     hud.textContent = 'Laissez le pendule au repos pour regler la verticale...';
-    drawMarker(ctx, O, '#22c55e'); drawMarker(ctx, M, '#22c55e');
-    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(M.x, M.y); ctx.stroke();
-    prevK = { raw: rawTheta };
+    prev = { raw: rawTheta };
     rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
     return;
   }
   const theta = rawTheta - zero.theta;
-  const k = kinematics(O, M, prevK ? { theta: prevK.theta, dtheta: prevK.dtheta } : null, dt, 300);
-  k.theta = theta;
-  prevK = { raw: rawTheta, theta: theta, dtheta: dtheta };
-  drawMarker(ctx, O, '#22c55e'); drawMarker(ctx, M, '#22c55e');
-  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(M.x, M.y); ctx.stroke();
   drawAngleArc(ctx, O, M, theta, { animate: false });
   hud.textContent = 'theta = ' + (theta * 180 / Math.PI).toFixed(1) + ' deg';
+  prev = { raw: rawTheta, theta: theta, dtheta: dtheta };
   rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
 }
 
