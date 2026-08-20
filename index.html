@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TP Pendule</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <main id="home" class="screen">
+    <p class="eyebrow">TP - Physique</p>
+    <h1 id="exp-title">Pendule simple</h1>
+    <p id="exp-goal">Mesurez la periode du pendule avec la camera, puis comparez au modele theorique.</p>
+    <div id="calib-status" class="status" role="status" aria-live="polite"></div>
+    <button id="main-action" class="btn-primary" disabled>Chargement...</button>
+    <div id="perm-error" class="error" hidden></div>
+    <button id="recalibrate" class="btn-link" hidden>Recalibrer la camera</button>
+    <p class="backend-hint" id="backend-hint"></p>
+  </main>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
