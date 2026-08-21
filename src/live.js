@@ -1,6 +1,8 @@
 import { drawAngleArc } from './overlays/angleArc.js';
 import { kinematics } from './kinematics.js';
 
+
+
 const PIVOT_ID = 4;
 const MASS_ID = 18;
 
@@ -8,7 +10,7 @@ let running = false;
 let rafId = null;
 let detector = null;
 
-const zero = { theta: null, samples: [], stableSince: null };
+const zero = { theta: null, samples: [], stableSince: null, lastM: null, badFrames: 0 };
 let prev = null;
 
 export function startLive(expId, stream) {
@@ -86,15 +88,28 @@ function detectMarkers(video, canvas) {
   return found;
 }
 
-function updateZero(rawTheta, dtheta) {
+function updateZero(rawTheta, M, hud) {
   if (zero.theta !== null) return;
-  if (Math.abs(dtheta) < 0.05) {
-    if (zero.stableSince === null) zero.stableSince = performance.now();
+  // stabilite mesuree en pixels sur le point M (moins bruite que dtheta)
+  const moved = zero.lastM ? Math.hypot(M.x - zero.lastM.x, M.y - zero.lastM.y) : 999;
+  zero.lastM = { x: M.x, y: M.y };
+  const STABLE_PX = 4;        // tolerance de mouvement, en pixels
+  const HOLD_MS = 1500;       // duree de stabilite requise
+  const GRACE = 5;            // frames instables tolerees avant reset
+
+  if (moved < STABLE_PX) {
+    zero.badFrames = 0;
+    if (zero.stableSince === null) { zero.stableSince = performance.now(); zero.samples = []; }
     zero.samples.push(rawTheta);
-    if (performance.now() - zero.stableSince > 2000) {
+    const held = performance.now() - zero.stableSince;
+    if (hud) hud.textContent = 'Verticale : maintenez immobile... ' + Math.min(100, Math.round(held / HOLD_MS * 100)) + '%';
+    if (held > HOLD_MS && zero.samples.length > 10) {
       zero.theta = zero.samples.reduce((a, b) => a + b, 0) / zero.samples.length;
     }
-  } else { zero.stableSince = null; zero.samples = []; }
+  } else {
+    zero.badFrames = (zero.badFrames || 0) + 1;
+    if (zero.badFrames > GRACE) { zero.stableSince = null; zero.samples = []; }
+  }
 }
 
 function loop(video, canvas, ctx, hud) {
@@ -115,8 +130,7 @@ function loop(video, canvas, ctx, hud) {
   ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(M.x, M.y); ctx.stroke();
   if (zero.theta === null) {
-    updateZero(rawTheta, dtheta);
-    hud.textContent = 'Laissez le pendule au repos pour regler la verticale...';
+    updateZero(rawTheta, M, hud);
     prev = { raw: rawTheta };
     rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
     return;
