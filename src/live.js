@@ -21,7 +21,7 @@ export function startLive(expId, stream) {
     hud.textContent = 'Erreur : js-aruco2 non charge (verifier index.html).';
     return;
   }
-  detector = new AR.Detector();
+  detector = new AR.Detector({ dictionaryName: 'ARUCO' });
   video.onloadedmetadata = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
