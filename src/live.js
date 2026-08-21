@@ -189,9 +189,8 @@ function detectMarkers(video, canvas) {
       cx += p.x;
       cy += p.y;
     }
-    found[mk.id] = { x: cx / 4, y: cy / 4 };
+    found[mk.id] = { x: cx / 4, y: cy / 4, corners: mk.corners };
   }
-
   return found;
 }
 
@@ -199,6 +198,27 @@ function normalizeAngle(a) {
   while (a <= -Math.PI) a += 2 * Math.PI;
   while (a > Math.PI) a -= 2 * Math.PI;
   return a;
+}
+
+const MARKER_SIZE_M = 0.05; // 50 mm, motif imprime en taille reelle
+
+// echelle metres/pixel a partir des 4 coins d'un marqueur
+function estimateScale(marker) {
+  const c = marker.corners;
+  let perim = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = c[i];
+    const b = c[(i + 1) % 4];
+    perim += Math.hypot(b.x - a.x, b.y - a.y);
+  }
+  const avgSidePx = perim / 4;
+  return avgSidePx > 0 ? MARKER_SIZE_M / avgSidePx : null;
+}
+
+// longueur du pendule en metres : distance pivot->masse convertie via l'echelle
+function estimateLength(O, M, scaleMPerPx) {
+  const distPx = Math.hypot(M.x - O.x, M.y - O.y);
+  return distPx * scaleMPerPx;
 }
 
 function updateZero(rawTheta, M, hud, nowMs) {
@@ -297,21 +317,30 @@ function loop(video, canvas, ctx, hud, stats) {
   if (measuring) {
     const t = nowMs / 1000;
     const pm = periodMeter.update(theta, t);
-    const Tth = theoreticalPeriod(PENDULUM_LENGTH);
+
+    // echelle depuis le marqueur pivot (ou la masse), puis L reel
+    const markerForScale = found[PIVOT_ID] || found[MASS_ID];
+    const scale = markerForScale && markerForScale.corners ? estimateScale(markerForScale) : null;
+    const L = scale ? estimateLength(O, M, scale) : null;
+    const Tth = L ? theoreticalPeriod(L) : null;
 
     if (stats) {
-      if (pm.period) {
+      let s = '';
+      if (L) s += 'L = ' + L.toFixed(3) + ' m  |  ';
+      if (pm.period && Tth) {
         const ecart = (pm.period - Tth) / Tth * 100;
-        stats.textContent =
-          'T mesurée = ' + pm.period.toFixed(3) + ' s' +
-          '  (théo. ' + Tth.toFixed(3) + ' s, écart ' + ecart.toFixed(1) + '%)' +
-          '  |  ' + pm.count + ' période(s) comptée(s)';
+        s += 'T mesuree = ' + pm.period.toFixed(3) + ' s'
+           + '  (theo ' + Tth.toFixed(3) + ' s, ecart ' + ecart.toFixed(1) + '%)'
+           + '  |  ' + pm.count + ' periode(s)';
+      } else if (pm.period) {
+        s += 'T mesuree = ' + pm.period.toFixed(3) + ' s  |  ' + pm.count + ' periode(s)';
       } else {
-        stats.textContent = 'Faites osciller le pendule pour mesurer la période...';
+        s += 'Faites osciller le pendule pour mesurer la periode...';
       }
+      stats.textContent = s;
     }
   } else if (stats) {
-    stats.textContent = 'Mesure en pause. Dernière valeur : ' +
+    stats.textContent = 'Mesure en pause. Derniere valeur : ' +
       (periodMeter.snapshot().period ? periodMeter.snapshot().period.toFixed(3) + ' s' : 'aucune');
   }
 

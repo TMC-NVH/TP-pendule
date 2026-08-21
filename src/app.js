@@ -27,25 +27,11 @@ function renderState(calib, config, expId) {
   btn.disabled = false;
   const resMismatch = calib && (calib.resolution.w !== config.targetResolution.w || calib.resolution.h !== config.targetResolution.h);
   if (!calib) {
-    // temporaire, le temps de tester la caméra :
     btn.onclick = () => requestCameraThen((s) => startLive(expId, s), config);
-    status.className = 'status warn';
-    status.textContent = 'Calibration requise (une fois, ~3 min), puis memorisee sur ce telephone.';
-    btn.textContent = 'Calibrer ma camera';
-    
-  } else if (resMismatch) {
-    status.className = 'status warn';
-    status.textContent = 'Recalibration conseillee : la calibration ne correspond pas a cette camera.';
-    btn.textContent = 'Recalibrer, puis demarrer';
-    btn.onclick = () => requestCameraThen(startCalibration, config);
-  } else {
-    const d = new Date(calib.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
     status.className = 'status ok';
-    status.textContent = 'Camera prete - calibree le ' + d + ' - precision ' + calib.reprojectionError.toFixed(2) + ' px.';
+    status.textContent = 'Pret. La longueur est mesuree automatiquement via le marqueur (50 mm).';
     btn.textContent = "Demarrer l'experience";
-    btn.onclick = () => requestCameraThen((s) => startLive(expId, s), config);
-    recal.hidden = false;
-    recal.onclick = () => requestCameraThen(startCalibration, config);
+    // Calibration ChArUco avancee (OpenCV.js) reservee a une v2 precision.
   }
 }
 
