@@ -189,4 +189,81 @@ function updateZero(rawTheta, M, hud, nowMs) {
     if (held > HOLD_MS && zero.samples.length > 10) {
       zero.theta = zero.samples.reduce((a, b) => a + b, 0) / zero.samples.length;
       if (hud) {
-        hud.textContent = 'Zero calibré, vous pouvez lancer l
+        hud.textContent = 'Zéro calibré, vous pouvez lancer le pendule.';
+      }
+    }
+  } else {
+    zero.badFrames += 1;
+    if (zero.badFrames > GRACE) {
+      zero.stableSince = null;
+      zero.samples = [];
+    }
+  }
+}
+
+function drawMarker(ctx, p, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 8, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+function loop(video, canvas, ctx, hud) {
+  if (!running) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const nowMs = performance.now();
+  const dt = lastFrameTs !== null ? (nowMs - lastFrameTs) / 1000 : 1 / 60;
+  lastFrameTs = nowMs;
+
+  const found = detectMarkers(video, canvas);
+  const O = found[PIVOT_ID];
+  const M = found[MASS_ID];
+
+  if (!O || !M) {
+    hud.textContent = 'Marqueurs non détectés (pivot=' + PIVOT_ID + ', masse=' + MASS_ID + ')...';
+    rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
+    return;
+  }
+
+  const rawTheta = Math.atan2(M.x - O.x, M.y - O.y);
+
+  drawMarker(ctx, O, '#22c55e');
+  drawMarker(ctx, M, '#22c55e');
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(O.x, O.y);
+  ctx.lineTo(M.x, M.y);
+  ctx.stroke();
+
+  if (zero.theta === null) {
+    updateZero(rawTheta, M, hud, nowMs);
+    prev = { raw: rawTheta };
+    rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
+    return;
+  }
+
+  const theta = normalizeAngle(rawTheta - zero.theta);
+  const dtheta = prev && prev.theta !== undefined ? (theta - prev.theta) / dt : 0;
+
+  drawAngleArc(ctx, O, M, theta, { animate: false });
+
+  const t = nowMs / 1000;
+  const pm = periodMeter.update(theta, t);
+  const Tth = theoreticalPeriod(PENDULUM_LENGTH);
+
+  let line = 'theta = ' + (theta * 180 / Math.PI).toFixed(1) + ' deg';
+  if (pm.period) {
+    const ecart = (pm.period - Tth) / Tth * 100;
+    line += '  |  T mesurée = ' + pm.period.toFixed(3) + ' s' +
+      '  (théo ' + Tth.toFixed(3) + ' s, écart ' + ecart.toFixed(1) + '%)';
+  } else {
+    line += '  |  faites osciller pour mesurer T...';
+  }
+  hud.textContent = line;
+
+  prev = { raw: rawTheta, theta: theta, dtheta: dtheta };
+  rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
+}
