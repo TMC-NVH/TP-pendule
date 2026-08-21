@@ -74,6 +74,8 @@ export function stopLive() {
     video.srcObject.getTracks().forEach((t) => t.stop());
     video.srcObject = null;
   }
+  const wrap = document.getElementById('live-wrap');
+  if (wrap) wrap.remove();
 }
 
 export function resetZero() {
@@ -272,7 +274,10 @@ function drawMarker(ctx, p, color) {
 
 function loop(video, canvas, ctx, hud, stats) {
   if (!running) return;
-
+  if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const nowMs = performance.now();
