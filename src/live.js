@@ -1,6 +1,6 @@
 import { drawAngleArc } from './overlays/angleArc.js';
 import { kinematics } from './kinematics.js';
-
+import { createPeriodMeter, theoreticalPeriod } from './period.js';
 
 
 const PIVOT_ID = 4;
@@ -12,6 +12,9 @@ let detector = null;
 
 const zero = { theta: null, samples: [], stableSince: null, lastM: null, badFrames: 0 };
 let prev = null;
+
+const periodMeter = createPeriodMeter();
+const PENDULUM_LENGTH = 0.5; // metres, saisi a la main pour l'instant (voir note)
 
 export function startLive(expId, stream) {
   const { video, canvas, ctx, hud } = ensureDom();
@@ -43,6 +46,7 @@ export function stopLive() {
 
 export function resetZero() {
   zero.theta = null; zero.samples = []; zero.stableSince = null; prev = null;
+  periodMeter.reset();
 }
 
 function ensureDom() {
@@ -119,7 +123,18 @@ function loop(video, canvas, ctx, hud) {
   const O = found[PIVOT_ID];
   const M = found[MASS_ID];
   if (!O || !M) {
-    hud.textContent = 'Cherche les marqueurs (pivot id=4, masse id=18)...';
+    const t = performance.now() / 1000;
+    const pm = periodMeter.update(theta, t);
+    const Tth = theoreticalPeriod(PENDULUM_LENGTH);
+    let line = 'theta = ' + (theta * 180 / Math.PI).toFixed(1) + ' deg';
+    if (pm.period) {
+      const ecart = (pm.period - Tth) / Tth * 100;
+      line += '  |  T mesuree = ' + pm.period.toFixed(3) + ' s'
+            + '  (theo ' + Tth.toFixed(3) + ' s, ecart ' + ecart.toFixed(1) + '%)';
+    } else {
+      line += '  |  faites osciller pour mesurer T...';
+    }
+    hud.textContent = line;
     rafId = requestAnimationFrame(() => loop(video, canvas, ctx, hud));
     return;
   }
