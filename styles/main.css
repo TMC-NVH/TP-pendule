@@ -12,3 +12,6 @@ h1 { font-size:1.6rem; margin:.2rem 0 1rem; }
 .btn-link { background:none; border:none; color:var(--accent); text-decoration:underline; margin-top:16px; }
 .error { margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(239,68,68,.12); border:1px solid var(--err); font-size:.88rem; }
 .backend-hint { color:#64748b; font-size:.8rem; margin-top:20px; font-style:italic; }
+#period-controls, #calib-controls { max-width:480px; margin:10px auto 24px; padding:0 20px; }
+#period-controls .btn-primary, #calib-controls .btn-primary { width:auto; padding:10px 18px; font-size:.92rem; }
+#period-controls .btn-link, #calib-controls .btn-link { margin-top:0; }

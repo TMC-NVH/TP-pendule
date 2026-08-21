@@ -19,6 +19,13 @@
   </main>
   <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/cv.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/aruco.js"></script>
+  <!--
+    OpenCV.js, chargé en asynchrone : utilisé uniquement pour la calibration
+    caméra via planche ChArUco (src/calibration.js). Le reste de l'app
+    (détection ArUco live, mesure de période) ne dépend pas de cette lib.
+    ~8 Mo — mis en cache par le navigateur après le premier chargement.
+  -->
+  <script async src="https://docs.opencv.org/4.x/opencv.js" onload="window.__cvReady = true;"></script>
   <script type="module" src="src/app.js"></script>
 </body>
 </html>
